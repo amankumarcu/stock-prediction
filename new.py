@@ -1,11 +1,11 @@
 import streamlit as st
 from datetime import date
-import time
 
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.svm import SVR
+import time
 
 START = "2015-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
@@ -38,13 +38,16 @@ data = load_data(selected_stock)
 if data is not None:
     data_load_state.text('Loading data... done!')
 
+    # Convert index to datetime and set timezone
+    data.index = pd.DatetimeIndex(data.index).tz_localize("UTC").tz_convert("Asia/Kolkata")
+
     st.subheader('Raw data')
     st.write(data.tail())
 
     # Plot raw data
     def plot_raw_data():
-        plt.plot(data['Date'], data['Open'], label="stock_open")
-        plt.plot(data['Date'], data['Close'], label="stock_close")
+        plt.plot(data.index, data['Open'], label="stock_open")
+        plt.plot(data.index, data['Close'], label="stock_close")
         plt.xlabel('Date')
         plt.ylabel('Price')
         plt.title('Time Series data')
