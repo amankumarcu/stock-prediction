@@ -40,7 +40,7 @@ if data is not None:
 
     # Convert index to datetime and set timezone
     data.index = pd.to_datetime(data['Date']).dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata')
-    data = data.set_index('Date'
+    data = data.set_index('Date')
 
     st.subheader('Raw data')
     st.write(data.tail())
