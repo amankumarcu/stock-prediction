@@ -1,5 +1,6 @@
-pandas
-matplotlib
-alpha_vantage
-streamlit
-statsmodels
+streamlit==0.89.0
+yfinance==0.1.63
+pandas==1.3.4
+numpy==1.21.4
+matplotlib==3.5.0
+scikit-learn==1.0.1
