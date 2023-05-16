@@ -1,0 +1,5 @@
+pandas
+matplotlib
+alpha_vantage
+streamlit
+statsmodels
