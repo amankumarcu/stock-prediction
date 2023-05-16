@@ -39,7 +39,8 @@ if data is not None:
     data_load_state.text('Loading data... done!')
 
     # Convert index to datetime and set timezone
-    data.index = pd.DatetimeIndex(data.index).tz_localize("UTC").tz_convert("Asia/Kolkata")
+    data.index = pd.to_datetime(data['Date']).dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata')
+    data = data.set_index('Date'
 
     st.subheader('Raw data')
     st.write(data.tail())
