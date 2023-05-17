@@ -62,8 +62,8 @@ last_date = df_train.index[-1]
 future_dates = pd.date_range(start=last_date, periods=period+1, closed='right')
 
 # Make predictions for future dates
-future_dates_index = pd.Index(np.arange(len(df_train), len(df_train) + len(future_dates)))
-forecast = model.predict(future_dates_index.values.reshape(-1, 1))
+future_dates_index = np.arange(len(df_train), len(df_train) + len(future_dates))
+forecast = model.predict(future_dates_index.reshape(-1, 1))
 
 # Prepare forecast data for plotting
 forecast_data = pd.DataFrame({'Date': future_dates, 'Close': forecast})
