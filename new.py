@@ -47,6 +47,7 @@ plot_raw_data()
 # Perform stock forecasting with Support Vector Regression (SVR)
 df_train = data[['Date', 'Close']]
 df_train['Date'] = pd.to_datetime(df_train['Date'])  # Convert to pandas datetime format
+df_train.set_index('Date', inplace=True)  # Set "Date" column as the index
 
 # Split the data into features (X) and target variable (y)
 X = df_train.index.values.reshape(-1, 1)
@@ -57,13 +58,12 @@ model = SVR(kernel='rbf')
 model.fit(X, y)
 
 # Generate future dates for prediction
-last_date = df_train['Date'].iloc[-1]
-future_dates = pd.date_range(start=pd.to_datetime(last_date), periods=period+1)
+last_date = df_train.index[-1]
+future_dates = pd.date_range(start=last_date, periods=period+1, closed='right')
 
 # Make predictions for future dates
-future_dates_unix = (future_dates - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
-future_dates_index = np.arange(len(df_train), len(df_train) + len(future_dates))
-forecast = model.predict(future_dates_index.reshape(-1, 1))
+future_dates_index = pd.Index(np.arange(len(df_train), len(df_train) + len(future_dates)))
+forecast = model.predict(future_dates_index.values.reshape(-1, 1))
 
 # Prepare forecast data for plotting
 forecast_data = pd.DataFrame({'Date': future_dates, 'Close': forecast})
@@ -74,7 +74,7 @@ st.write(forecast_data.tail())
 
 st.write(f'Forecast plot for {n_years} years')
 fig, ax = plt.subplots()
-ax.plot(df_train['Date'], df_train['Close'], label='Actual')
+ax.plot(df_train.index, df_train['Close'], label='Actual')
 ax.plot(future_dates, forecast, label='Forecast')
 ax.set_xlabel('Date')
 ax.set_ylabel('Price')
