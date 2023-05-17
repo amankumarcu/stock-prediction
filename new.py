@@ -1,16 +1,16 @@
 import streamlit as st
 from datetime import date
-
 import yfinance as yf
-import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.svm import SVR
-import time
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import matplotlib.dates as mdates
 
 START = "2015-01-01"
 TODAY = date.today().strftime("%Y-%m-%d")
 
-st.title('Stock Forecast App')
+st.title('goStock Forecast System')
 
 stocks = ('GOOG', 'AAPL', 'MSFT', 'GME')
 selected_stock = st.selectbox('Select dataset for prediction', stocks)
@@ -18,76 +18,71 @@ selected_stock = st.selectbox('Select dataset for prediction', stocks)
 n_years = st.slider('Years of prediction:', 1, 4)
 period = n_years * 365
 
-@st.cache
+@st.cache_data
 def load_data(ticker):
-    retries = 0
-    while retries < 3:
-        try:
-            data = yf.download(ticker, START, TODAY)
-            data.reset_index(inplace=True)
-            return data
-        except Exception as e:
-            st.warning(f"Error loading data: {str(e)}. Retrying in 5 seconds...")
-            time.sleep(5)
-            retries += 1
-    st.error("Failed to load data. Please try again later.")
-    return None
+    data = yf.download(ticker, START, TODAY)
+    data.reset_index(inplace=True)
+    return data
 
 data_load_state = st.text('Loading data...')
 data = load_data(selected_stock)
-if data is not None:
-    data_load_state.text('Loading data... done!')
+data_load_state.text('Loading data... done!')
 
-    # Convert index to datetime and set timezone
-    data.index = pd.to_datetime(data['Date']).dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata')
-    data = data.set_index('Date')
+st.subheader('Raw data')
+st.write(data.tail())
 
-    st.subheader('Raw data')
-    st.write(data.tail())
+# Plot raw data
+def plot_raw_data():
+    fig, ax = plt.subplots()
+    ax.plot(data['Date'], data['Open'], label="stock_open")
+    ax.plot(data['Date'], data['Close'], label="stock_close")
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price')
+    ax.set_title('Time Series data')
+    ax.legend()
+    st.pyplot(fig)
 
-    # Plot raw data
-    def plot_raw_data():
-        plt.plot(data.index, data['Open'], label="stock_open")
-        plt.plot(data.index, data['Close'], label="stock_close")
-        plt.xlabel('Date')
-        plt.ylabel('Price')
-        plt.title('Time Series data')
-        plt.legend()
-        st.pyplot()
+plot_raw_data()
 
-    plot_raw_data()
+# Perform stock forecasting with Support Vector Regression (SVR)
+df_train = data[['Date', 'Close']]
+df_train['Date'] = pd.to_datetime(df_train['Date'])  # Convert to pandas datetime format
 
-    # Perform stock forecasting with SVR
-    df_train = data[['Date', 'Close']]
-    df_train['Date'] = pd.to_datetime(df_train['Date'])  # Convert to datetime
+# Split the data into features (X) and target variable (y)
+X = df_train.index.values.reshape(-1, 1)
+y = df_train['Close'].values
 
-    # Split the data into features (X) and target variable (y)
-    X = df_train[['Date']]
-    y = df_train['Close']
+# Train the SVR model
+model = SVR(kernel='rbf')
+model.fit(X, y)
 
-    # Train the SVR model
-    model = SVR(kernel='rbf', C=1e3, gamma=0.1)
-    model.fit(X, y)
+# Generate future dates for prediction
+last_date = df_train['Date'].iloc[-1]
+future_dates = pd.date_range(start=pd.to_datetime(last_date), periods=period+1)
 
-    # Generate future dates for prediction
-    future_dates = pd.date_range(start=df_train['Date'].iloc[-1], periods=period, closed='right')
+# Make predictions for future dates
+future_dates_unix = (future_dates - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
+future_dates_index = np.arange(len(df_train), len(df_train) + len(future_dates))
+forecast = model.predict(future_dates_index.reshape(-1, 1))
 
-    # Make predictions for future dates
-    forecast_dates = pd.to_datetime(future_dates, unit='s')
-    forecast = model.predict(future_dates.to_numpy().reshape(-1, 1))
+# Prepare forecast data for plotting
+forecast_data = pd.DataFrame({'Date': future_dates, 'Close': forecast})
 
-    # Prepare forecast data for plotting
-    forecast_data = pd.DataFrame({'Date': forecast_dates, 'Close': forecast})
+# Show and plot forecast
+st.subheader('Forecast data')
+st.write(forecast_data.tail())
 
-    # Show and plot forecast
-    st.subheader('Forecast data')
-    st.write(forecast_data.tail())
+st.write(f'Forecast plot for {n_years} years')
+fig, ax = plt.subplots()
+ax.plot(df_train['Date'], df_train['Close'], label='Actual')
+ax.plot(future_dates, forecast, label='Forecast')
+ax.set_xlabel('Date')
+ax.set_ylabel('Price')
+ax.set_title('Stock Price Forecast')
+ax.legend()
 
-    st.write(f'Forecast plot for {n_years} years')
-    plt.plot(df_train['Date'], df_train['Close'], label='Actual')
-    plt.plot(forecast_dates, forecast, label='Forecast')
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.title('Stock Price Forecast')
-    plt.legend()
-    st.pyplot()
+# Format x-axis ticks as dates
+ax.xaxis.set_major_locator(mdates.YearLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+st.pyplot(fig)
